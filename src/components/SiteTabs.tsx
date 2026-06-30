@@ -4,6 +4,13 @@ import { motion } from "framer-motion";
 import { Atom, Brain, Cloud, Code2, Rss, Search } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import type { AggregatedData } from "@/lib/types";
+import {
+  NAV_EVENT,
+  QUANTUM_HASH,
+  isAiSectionHash,
+  navigateToHash,
+  scrollToSection,
+} from "@/lib/navigation";
 import { SectionHeader } from "./SectionHeader";
 import { VideoGrid } from "./VideoGrid";
 import { ArticleCard } from "./ArticleCard";
@@ -24,22 +31,43 @@ const mainTabs: { id: MainTab; label: string; icon: typeof Brain }[] = [
 export function SiteTabs({ data }: SiteTabsProps) {
   const [activeTab, setActiveTab] = useState<MainTab>("ai");
 
-  const syncTabFromHash = useCallback(() => {
-    const hash = window.location.hash.replace("#", "");
-    if (hash === "quantum") setActiveTab("quantum");
-    else if (hash === "ai" || hash === "topics") setActiveTab("ai");
+  const handleNavigation = useCallback((hash: string) => {
+    if (hash === QUANTUM_HASH) {
+      setActiveTab("quantum");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+
+    if (isAiSectionHash(hash)) {
+      setActiveTab("ai");
+      if (hash === "ai" || hash === "topics") {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      } else {
+        scrollToSection(hash, 120);
+      }
+    }
   }, []);
 
   useEffect(() => {
-    syncTabFromHash();
-    window.addEventListener("hashchange", syncTabFromHash);
-    return () => window.removeEventListener("hashchange", syncTabFromHash);
-  }, [syncTabFromHash]);
+    const onHashChange = () => {
+      handleNavigation(window.location.hash.replace("#", ""));
+    };
+    const onNavEvent = (e: Event) => {
+      const hash = (e as CustomEvent<{ hash: string }>).detail.hash;
+      handleNavigation(hash);
+    };
+
+    onHashChange();
+    window.addEventListener("hashchange", onHashChange);
+    window.addEventListener(NAV_EVENT, onNavEvent);
+    return () => {
+      window.removeEventListener("hashchange", onHashChange);
+      window.removeEventListener(NAV_EVENT, onNavEvent);
+    };
+  }, [handleNavigation]);
 
   function selectTab(tab: MainTab) {
-    setActiveTab(tab);
-    window.history.replaceState(null, "", tab === "quantum" ? "#quantum" : "#ai");
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    navigateToHash(tab === "quantum" ? "#quantum" : "#ai");
   }
 
   return (

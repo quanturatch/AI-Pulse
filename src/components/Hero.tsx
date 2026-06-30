@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { Sparkles, Zap, Radio } from "lucide-react";
 import { SITE } from "@/lib/config";
+import { navigateToHash } from "@/lib/navigation";
 
 interface HeroProps {
   lastUpdated: string;
@@ -50,6 +51,10 @@ export function Hero({ lastUpdated, stats }: HeroProps) {
           <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
             <a
               href="#topics"
+              onClick={(e) => {
+                e.preventDefault();
+                navigateToHash("#topics");
+              }}
               className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-cyan-600 px-6 py-3 text-sm font-semibold shadow-lg shadow-violet-500/25 transition-transform hover:scale-105"
             >
               <Zap className="h-4 w-4" />
@@ -57,6 +62,10 @@ export function Hero({ lastUpdated, stats }: HeroProps) {
             </a>
             <a
               href="#articles"
+              onClick={(e) => {
+                e.preventDefault();
+                navigateToHash("#articles");
+              }}
               className="glass glass-hover inline-flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold text-white/80"
             >
               <Sparkles className="h-4 w-4 text-fuchsia-400" />

@@ -17,6 +17,10 @@
     scroll-behavior: smooth;
   }
 
+  section[id] {
+    scroll-margin-top: 5.5rem;
+  }
+
   body {
     @apply bg-neural-950 text-white antialiased;
     background-image:

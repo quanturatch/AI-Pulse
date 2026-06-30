@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { Activity, Menu, X } from "lucide-react";
 import { useState } from "react";
 import { SITE } from "@/lib/config";
+import { navigateToHash } from "@/lib/navigation";
 
 const links = [
   { href: "#ai", label: "AI Hub" },
@@ -17,6 +18,15 @@ const links = [
 export function Navbar() {
   const [open, setOpen] = useState(false);
 
+  function handleNavClick(
+    e: React.MouseEvent<HTMLAnchorElement>,
+    href: string
+  ) {
+    e.preventDefault();
+    navigateToHash(href);
+    setOpen(false);
+  }
+
   return (
     <motion.header
       initial={{ y: -20, opacity: 0 }}
@@ -25,7 +35,11 @@ export function Navbar() {
       className="sticky top-0 z-50 border-b border-white/5 bg-neural-950/70 backdrop-blur-2xl"
     >
       <nav className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
-        <a href="#" className="group flex items-center gap-2.5">
+        <a
+          href="#ai"
+          onClick={(e) => handleNavClick(e, "#ai")}
+          className="group flex items-center gap-2.5"
+        >
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-cyan-500 shadow-lg shadow-violet-500/25">
             <Activity className="h-5 w-5 text-white" />
           </div>
@@ -42,6 +56,7 @@ export function Navbar() {
             <a
               key={link.href}
               href={link.href}
+              onClick={(e) => handleNavClick(e, link.href)}
               className="rounded-lg px-4 py-2 text-sm text-white/60 transition-colors hover:bg-white/5 hover:text-white"
             >
               {link.label}
@@ -69,8 +84,8 @@ export function Navbar() {
             <a
               key={link.href}
               href={link.href}
+              onClick={(e) => handleNavClick(e, link.href)}
               className="block rounded-lg px-3 py-2.5 text-sm text-white/70 hover:bg-white/5"
-              onClick={() => setOpen(false)}
             >
               {link.label}
             </a>
