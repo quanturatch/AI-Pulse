@@ -35,13 +35,38 @@ interface YouTubeListResponse<T> {
   nextPageToken?: string;
 }
 
-export function isYouTubeConfigured(): boolean {
-  return !!process.env.YOUTUBE_API_KEY?.trim();
+const exhaustedKeys = new Set<string>();
+
+function getAllApiKeys(): string[] {
+  return [process.env.YOUTUBE_API_KEY, process.env.YOUTUBE_API_KEY_2]
+    .filter((k): k is string => !!k?.trim())
+    .map((k) => k.trim());
 }
 
-function getApiKey(): string | null {
-  const key = process.env.YOUTUBE_API_KEY?.trim();
-  return key || null;
+function getActiveApiKeys(): string[] {
+  return getAllApiKeys().filter((k) => !exhaustedKeys.has(k));
+}
+
+export function isYouTubeConfigured(): boolean {
+  return getAllApiKeys().length > 0;
+}
+
+/** Reset at the start of each data refresh so keys are retried */
+export function resetYouTubeKeyState(): void {
+  exhaustedKeys.clear();
+}
+
+function shouldTryFallback(status: number, body: string): boolean {
+  if (status === 429) return true;
+  if (status === 403) {
+    return (
+      body.includes("quotaExceeded") ||
+      body.includes("RESOURCE_EXHAUSTED") ||
+      body.includes("rateLimitExceeded") ||
+      body.includes("dailyLimitExceeded")
+    );
+  }
+  return false;
 }
 
 function parseIsoDuration(duration: string | undefined): number {
@@ -116,15 +141,11 @@ function mapPlaylistVideo(item: PlaylistItem): VideoItem | null {
   );
 }
 
-async function youtubeGet<T = unknown>(
+async function youtubeFetchWithKey<T>(
+  apiKey: string,
   endpoint: string,
   params: Record<string, string>
-): Promise<YouTubeListResponse<T>> {
-  const apiKey = getApiKey();
-  if (!apiKey) {
-    return { items: [] };
-  }
-
+): Promise<{ ok: true; data: YouTubeListResponse<T> } | { ok: false; status: number; body: string }> {
   const url = new URL(`https://www.googleapis.com/youtube/v3/${endpoint}`);
   url.searchParams.set("key", apiKey);
   for (const [k, v] of Object.entries(params)) {
@@ -133,12 +154,43 @@ async function youtubeGet<T = unknown>(
 
   const res = await fetch(url.toString(), { next: { revalidate: 3600 } });
   if (!res.ok) {
-    const err = await res.text();
-    console.error(`YouTube API error (${endpoint}):`, err);
-    return { items: [] };
+    return { ok: false, status: res.status, body: await res.text() };
   }
   const json = await res.json();
-  return { items: json.items || [], nextPageToken: json.nextPageToken };
+  return {
+    ok: true,
+    data: { items: json.items || [], nextPageToken: json.nextPageToken },
+  };
+}
+
+async function youtubeGet<T = unknown>(
+  endpoint: string,
+  params: Record<string, string>
+): Promise<YouTubeListResponse<T>> {
+  const keys = getActiveApiKeys();
+  if (keys.length === 0) return { items: [] };
+
+  for (let i = 0; i < keys.length; i++) {
+    const apiKey = keys[i];
+    const result = await youtubeFetchWithKey<T>(apiKey, endpoint, params);
+
+    if (result.ok) return result.data;
+
+    const { status, body } = result;
+    if (shouldTryFallback(status, body)) {
+      exhaustedKeys.add(apiKey);
+      console.warn(
+        `YouTube key ${i + 1} limit hit (${endpoint}), trying fallback key...`
+      );
+      continue;
+    }
+
+    console.error(`YouTube API error (${endpoint}):`, body);
+    return { items: [] };
+  }
+
+  console.error(`YouTube API: all keys exhausted for ${endpoint}`);
+  return { items: [] };
 }
 
 async function fetchVideoDurations(

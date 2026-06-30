@@ -11,6 +11,7 @@ import {
   fetchAllQuantumVideos,
   fetchAllVendorVideos,
   isYouTubeConfigured,
+  resetYouTubeKeyState,
 } from "./youtube";
 import { fetchAllRssArticles } from "./rss";
 import { fetchTavilyArticles } from "./tavily";
@@ -50,6 +51,8 @@ function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T
 }
 
 export async function refreshAllData(): Promise<AggregatedData> {
+  resetYouTubeKeyState();
+
   // Phase 1: fast sources (RSS, Tavily, GitHub) — always finish first
   const [rssArticles, tavilyArticles, githubRepos] = await Promise.all([
     settle("RSS articles", fetchAllRssArticles, []),

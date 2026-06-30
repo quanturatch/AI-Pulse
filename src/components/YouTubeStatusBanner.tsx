@@ -26,8 +26,10 @@ export function YouTubeStatusBanner({
               <p className="mt-1 text-amber-200/70">
                 Create a <code className="rounded bg-black/30 px-1.5 py-0.5 text-xs">.env</code> file
                 in the project root and add your{" "}
-                <code className="rounded bg-black/30 px-1.5 py-0.5 text-xs">YOUTUBE_API_KEY</code>.
-                Get one from{" "}
+                <code className="rounded bg-black/30 px-1.5 py-0.5 text-xs">YOUTUBE_API_KEY</code>{" "}
+                and optional{" "}
+                <code className="rounded bg-black/30 px-1.5 py-0.5 text-xs">YOUTUBE_API_KEY_2</code>.
+                Get keys from{" "}
                 <a
                   href="https://console.cloud.google.com/apis/credentials"
                   target="_blank"
@@ -47,8 +49,9 @@ export function YouTubeStatusBanner({
                 No videos loaded — API key may be invalid or quota exceeded
               </p>
               <p className="mt-1 text-amber-200/70">
-                Check that YouTube Data API v3 is enabled, your key is correct, and
-                you have quota remaining. Click <strong>Refresh Now</strong> after fixing.
+                Check that YouTube Data API v3 is enabled and quota is available.
+                Add a second key as <code className="rounded bg-black/30 px-1.5 py-0.5 text-xs">YOUTUBE_API_KEY_2</code> for
+                automatic fallback when the primary quota is exceeded. Click <strong>Refresh Now</strong> after fixing.
               </p>
             </>
           )}
