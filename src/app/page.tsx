@@ -7,7 +7,8 @@ import { Footer } from "@/components/Footer";
 import { YouTubeStatusBanner } from "@/components/YouTubeStatusBanner";
 import { SiteTabs } from "@/components/SiteTabs";
 
-export const revalidate = 3600;
+export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 export default async function HomePage() {
   const raw = await getAggregatedData();
