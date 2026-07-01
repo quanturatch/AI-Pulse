@@ -2,6 +2,7 @@ export const SITE = {
   name: "AI-Pulse",
   tagline: "Your real-time pulse on AI — videos, docs & breakthroughs",
   url: "https://www.quanturatech.com",
+  suggestionsEmail: "info@quanturatech.com",
 };
 
 export const TOPIC_QUERIES = [

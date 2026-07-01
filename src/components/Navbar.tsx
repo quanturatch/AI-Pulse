@@ -13,6 +13,7 @@ const links = [
   { href: "#github", label: "GitHub Repos" },
   { href: "#articles", label: "Articles" },
   { href: "#discover", label: "Discover" },
+  { href: "#suggestions", label: "Suggestions" },
 ];
 
 export function Navbar() {

@@ -48,6 +48,16 @@ export function Footer() {
             </span>
           </div>
 
+          <p className="text-sm text-white/40">
+            Suggestions?{" "}
+            <a
+              href={`mailto:${SITE.suggestionsEmail}?subject=${encodeURIComponent(`${SITE.name} — Suggestion`)}`}
+              className="text-violet-300 underline decoration-violet-500/30 underline-offset-4 transition-colors hover:text-cyan-300"
+            >
+              {SITE.suggestionsEmail}
+            </a>
+          </p>
+
           <p className="text-xs text-white/25">
             © {new Date().getFullYear()} Quantura Technologies. All rights reserved.
           </p>

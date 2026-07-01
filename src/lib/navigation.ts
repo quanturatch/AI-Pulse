@@ -7,6 +7,7 @@ export const AI_SECTION_HASHES = [
   "github",
   "articles",
   "discover",
+  "suggestions",
 ] as const;
 
 export type AiSectionHash = (typeof AI_SECTION_HASHES)[number];

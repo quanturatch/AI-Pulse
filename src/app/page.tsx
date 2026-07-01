@@ -6,6 +6,7 @@ import { Hero } from "@/components/Hero";
 import { Footer } from "@/components/Footer";
 import { YouTubeStatusBanner } from "@/components/YouTubeStatusBanner";
 import { SiteTabs } from "@/components/SiteTabs";
+import { Suggestions } from "@/components/Suggestions";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -31,6 +32,7 @@ export default async function HomePage() {
         />
         <Hero lastUpdated={data.lastUpdated} stats={data.stats} />
         <SiteTabs data={data} />
+        <Suggestions />
       </main>
       <Footer />
     </>
