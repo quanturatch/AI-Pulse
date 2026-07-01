@@ -8,7 +8,7 @@ import {
   readStaleMemoryCache,
 } from "./memory-cache";
 
-export const CACHE_VERSION = 4;
+export const CACHE_VERSION = 5;
 
 const LEGACY_TAVILY_ID = /^tavily-aHR0cHM6Ly93d3cu-\d+$/;
 
@@ -27,6 +27,28 @@ function getCacheFile(): string {
 export function getCacheTtl(): number {
   const ttl = parseInt(process.env.CACHE_TTL_SECONDS || "14400", 10);
   return isNaN(ttl) ? 14400 : ttl;
+}
+
+/** YouTube videos are re-fetched at most once per day (default 24h) */
+export function getYoutubeCacheTtl(): number {
+  const ttl = parseInt(process.env.YOUTUBE_CACHE_TTL_SECONDS || "86400", 10);
+  return isNaN(ttl) ? 86400 : ttl;
+}
+
+function countVideos(data: AggregatedData): number {
+  return (
+    data.topics.reduce((s, t) => s + t.videos.length, 0) +
+    data.quantum.reduce((s, t) => s + t.videos.length, 0) +
+    data.vendors.reduce((s, v) => s + v.videos.length, 0)
+  );
+}
+
+export function isYoutubeCacheFresh(data: AggregatedData | null): boolean {
+  if (!data?.youtubeCachedAt) return false;
+  if (countVideos(data) === 0) return false;
+  const age =
+    (Date.now() - new Date(data.youtubeCachedAt).getTime()) / 1000;
+  return age < getYoutubeCacheTtl();
 }
 
 function isEmptyVideoCache(data: AggregatedData): boolean {

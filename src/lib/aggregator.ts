@@ -4,8 +4,14 @@ import {
   VENDOR_CHANNELS,
   RSS_FEEDS,
 } from "./config";
-import type { AggregatedData } from "./types";
-import { readCache, writeCache, readStaleCache, CACHE_VERSION } from "./cache";
+import type { AggregatedData, VideoItem } from "./types";
+import {
+  readCache,
+  writeCache,
+  readStaleCache,
+  CACHE_VERSION,
+  isYoutubeCacheFresh,
+} from "./cache";
 import {
   fetchAllTopicVideos,
   fetchAllQuantumVideos,
@@ -22,7 +28,7 @@ let refreshPromise: Promise<AggregatedData> | null = null;
 
 function buildTopicSections(
   queries: typeof TOPIC_QUERIES | typeof QUANTUM_QUERIES,
-  videoMap: Record<string, import("./types").VideoItem[]>
+  videoMap: Record<string, VideoItem[]>
 ) {
   return queries.map((topic) => ({
     id: topic.id,
@@ -34,59 +40,96 @@ function buildTopicSections(
   }));
 }
 
-async function settle<T>(label: string, fn: () => Promise<T>, fallback: T): Promise<T> {
+function videosFromStale(stale: AggregatedData) {
+  return {
+    topicVideos: Object.fromEntries(stale.topics.map((t) => [t.id, t.videos])),
+    quantumVideos: Object.fromEntries(
+      stale.quantum.map((t) => [t.id, t.videos])
+    ),
+    vendorVideos: Object.fromEntries(
+      stale.vendors.map((v) => [v.id, v.videos])
+    ),
+    youtubeCachedAt: stale.youtubeCachedAt || stale.lastUpdated,
+  };
+}
+
+async function settle<T>(
+  label: string,
+  fn: () => Promise<T>,
+  fallback: T
+): Promise<T> {
   try {
     return await fn();
   } catch (err) {
-    console.error(`Failed to fetch ${label}:`, err instanceof Error ? err.message : err);
+    console.error(
+      `Failed to fetch ${label}:`,
+      err instanceof Error ? err.message : err
+    );
     return fallback;
   }
 }
 
-function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
+function withTimeout<T>(
+  promise: Promise<T>,
+  ms: number,
+  fallback: T
+): Promise<T> {
   return Promise.race([
     promise,
     new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms)),
   ]);
 }
 
-export async function refreshAllData(): Promise<AggregatedData> {
-  resetYouTubeKeyState();
+export async function refreshAllData(
+  options: { forceYoutube?: boolean } = {}
+): Promise<AggregatedData> {
+  const stale = await readStaleCache();
+  const reuseYoutube =
+    !options.forceYoutube && stale && isYoutubeCacheFresh(stale);
 
-  // Phase 1: fast sources (RSS, Tavily, GitHub) — always finish first
+  // Phase 1: always refresh fast sources
   const [rssArticles, tavilyArticles, githubRepos] = await Promise.all([
     settle("RSS articles", fetchAllRssArticles, []),
     settle("Tavily articles", fetchTavilyArticles, []),
     settle("GitHub repos", fetchTopAiSecurityRepos, []),
   ]);
 
-  // Phase 2: YouTube (slow) — use stale videos if timeout (Vercel 10s limit)
-  const stale = await readStaleCache();
-  const youtubeTimeout = process.env.VERCEL ? 20_000 : 120_000;
+  let topicVideos: Record<string, VideoItem[]>;
+  let quantumVideos: Record<string, VideoItem[]>;
+  let vendorVideos: Record<string, VideoItem[]>;
+  let youtubeCachedAt: string;
 
-  const [topicVideos, quantumVideos, vendorVideos] = await Promise.all([
-    withTimeout(
-      settle("topic videos", fetchAllTopicVideos, {}),
-      youtubeTimeout,
-      stale
-        ? Object.fromEntries(stale.topics.map((t) => [t.id, t.videos]))
-        : {}
-    ),
-    withTimeout(
-      settle("quantum videos", fetchAllQuantumVideos, {}),
-      youtubeTimeout,
-      stale
-        ? Object.fromEntries(stale.quantum.map((t) => [t.id, t.videos]))
-        : {}
-    ),
-    withTimeout(
-      settle("vendor videos", fetchAllVendorVideos, {}),
-      youtubeTimeout,
-      stale
-        ? Object.fromEntries(stale.vendors.map((v) => [v.id, v.videos]))
-        : {}
-    ),
-  ]);
+  if (reuseYoutube) {
+    const cached = videosFromStale(stale!);
+    topicVideos = cached.topicVideos;
+    quantumVideos = cached.quantumVideos;
+    vendorVideos = cached.vendorVideos;
+    youtubeCachedAt = cached.youtubeCachedAt;
+    console.info("YouTube cache still fresh — skipping YouTube API calls");
+  } else {
+    resetYouTubeKeyState();
+    const youtubeTimeout = process.env.VERCEL ? 20_000 : 120_000;
+    const fallback = stale ? videosFromStale(stale) : null;
+
+    [topicVideos, quantumVideos, vendorVideos] = await Promise.all([
+      withTimeout(
+        settle("topic videos", fetchAllTopicVideos, {}),
+        youtubeTimeout,
+        fallback?.topicVideos ?? {}
+      ),
+      withTimeout(
+        settle("quantum videos", fetchAllQuantumVideos, {}),
+        youtubeTimeout,
+        fallback?.quantumVideos ?? {}
+      ),
+      withTimeout(
+        settle("vendor videos", fetchAllVendorVideos, {}),
+        youtubeTimeout,
+        fallback?.vendorVideos ?? {}
+      ),
+    ]);
+    youtubeCachedAt = new Date().toISOString();
+  }
 
   const topics = buildTopicSections(TOPIC_QUERIES, topicVideos);
   const quantum = buildTopicSections(QUANTUM_QUERIES, quantumVideos);
@@ -116,6 +159,7 @@ export async function refreshAllData(): Promise<AggregatedData> {
     tavilyArticles: tavily,
     githubRepos,
     lastUpdated: new Date().toISOString(),
+    youtubeCachedAt,
     stats: {
       totalVideos,
       totalArticles: articles.length + tavily.length,
@@ -135,9 +179,11 @@ export async function refreshAllData(): Promise<AggregatedData> {
   return data;
 }
 
-async function refreshWithLock(): Promise<AggregatedData> {
+async function refreshWithLock(
+  options: { forceYoutube?: boolean } = {}
+): Promise<AggregatedData> {
   if (!refreshPromise) {
-    refreshPromise = refreshAllData().finally(() => {
+    refreshPromise = refreshAllData(options).finally(() => {
       refreshPromise = null;
     });
   }

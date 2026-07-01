@@ -69,5 +69,6 @@ export interface AggregatedData {
     sources: number;
   };
   youtubeConfigured?: boolean;
+  youtubeCachedAt?: string;
   cacheVersion?: number;
 }

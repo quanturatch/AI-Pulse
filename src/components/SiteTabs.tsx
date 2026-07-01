@@ -110,7 +110,9 @@ export function SiteTabs({ data }: SiteTabsProps) {
         <p className="mt-3 text-xs text-white/40">
           All videos are filtered to <span className="text-cyan-300/80">8 minutes minimum</span>
           <span className="mx-2">·</span>
-          YouTube &amp; Tavily use <span className="text-cyan-300/80">dual-key fallback</span>
+          YouTube cached <span className="text-cyan-300/80">24h</span> per refresh
+          <span className="mx-2">·</span>
+          Articles/repos refresh every click
         </p>
       </div>
 
